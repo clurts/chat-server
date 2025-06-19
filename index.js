@@ -26,6 +26,9 @@ app.options('/api/chat', (c) => {
   return c.text('', 204);
 });
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+
 const schemaDescription = `
 # Schema:
 
@@ -72,12 +75,14 @@ Return only a complete SQL statement, nothing else. Do not say anything before o
       return c.json({ error: 'Invalid SQL query generated.' }, 400);
     }
 
+    wait(1000); // Simulate processing delay
+
     // Step 3: Convert result to natural language with Mistral
     const explanation = await client.chat.complete({
       model: 'mistral-large-latest',
       messages: [
-        { role: 'system', content: 'You convert structured data into plain natural language summaries.' },
-        { role: 'user', content: `Explain this data:\n\n${JSON.stringify(queryResult, null, 2)}` },
+        { role: 'system', content: 'You convert structured data into plain natural language summaries in the danish language. You always answer in complete sentences.' },
+        { role: 'user', content: `Please provide information about the time and place, but also a short, one sentence introduction to the band based on the description in this response: ${JSON.stringify(queryResult, null, 2)}` },
       ],
     });
 
