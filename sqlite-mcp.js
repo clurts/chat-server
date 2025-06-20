@@ -25,13 +25,15 @@ const server = new McpServer({
 // 1️⃣ Resource: expose your DB schema
 server.registerResource(
   'schema',
-  new ResourceTemplate('sqlite://schema', {}),
+  new ResourceTemplate('sqlite://schema', {
+    read: z.object({})
+  }),
   { title: 'Database schema', description: 'SQLite schema for query generation', mimeType: 'text/plain' },
   async () => ({
     contents: [{ uri: 'sqlite://schema', text: schemaText }]
   })
 );
-
+console.log('inputSchema is ZodObject:', z.object({ sql: z.string() })._def.typeName);
 // 2️⃣ Tool: execute raw SQL
 server.registerTool(
   'query_sql',
