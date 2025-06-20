@@ -12,14 +12,13 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "zod": "3.25.67",
     "@hono/node-server": "^1.14.4",
     "@mistralai/mistralai": "^1.7.2",
     "@modelcontextprotocol/sdk": "^1.13.0",
     "better-sqlite3": "^11.10.0",
     "dotenv": "^16.5.0",
     "hono": "^4.8.0",
-    "model-context-protocol": "^1.0.2",
-    "sqlite3": "^5.1.7",
-    "zod": "^3.25.67"
+    "sqlite3": "^5.1.7"
   }
 }
