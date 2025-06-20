@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
-import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio';
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from 'zod';
 
 const db = new Database('./suset.db');
@@ -17,12 +17,15 @@ const schemaText = `
 `;
 
 
-const server = new McpServer({ name: 'sqlite-mcp', version: '1.0.0' });
+const server = new McpServer({ 
+  name: 'sqlite-mcp', 
+  version: '1.0.0' 
+});
 
 // 1️⃣ Resource: expose your DB schema
 server.registerResource(
   'schema',
-  new ResourceTemplate('sqlite://schema', { list: undefined }),
+  new ResourceTemplate('sqlite://schema', {}),
   { title: 'Database schema', description: 'SQLite schema for query generation', mimeType: 'text/plain' },
   async () => ({
     contents: [{ uri: 'sqlite://schema', text: schemaText }]
@@ -47,7 +50,6 @@ server.registerTool(
   }
 );
 
- (async () => {
-   const transport = new StdioServerTransport();
-   await server.connect(transport);
- })();
+const transport = new StdioServerTransport();
+await server.connect(transport);
+

@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
-import { spawn } from 'child_process';
-import { McpClient } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio/index.js';
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+
 import { Mistral } from '@mistralai/mistralai';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -35,32 +35,31 @@ app.post('/api/chat', async (c) => {
     const { message } = await c.req.json();
 
      // 1️⃣ Start the MCP server (sqlite-mcp.js must exist)
-  const mcpProcess = spawn('node', ['sqlite-mcp.js'], {
-    stdio: ['pipe', 'pipe', 'inherit']
-  });
 
-  const transport = new StdioClientTransport({
-    stdin: mcpProcess.stdin,
-    stdout: mcpProcess.stdout
-  });
+const transport = new StdioClientTransport({
+  command: 'node',
+  args: ['sqlite-mcp.js']
+});
 
-    const mcp = new McpClient({ transport });
-    await mcp.handshake();
-
+    const client = new Client({ 
+      name: "hono-client", 
+      version: "1.0.0" 
+    });
+    await client.connect(transport);
 
     try {
 
         // 2️⃣ Fetch the schema
-    const schema = await mcp.getResource('sqlite://schema');
+    const schema = await client.readResource({ uri: 'sqlite://schema' });
     const schemaText = schema.contents[0].text;
 
 
-        const completion = await client.chat.complete({
+        const completion = await mistral.chat.complete({
             model: 'mistral-large-latest',
             messages: [
                 {
                     role: 'system',
-                    content: `You generate only raw SQLite SQL with no explanation or formatting.\nSchema:\n${schemaText}`
+                    content: `You generate only raw SQLite SQL statements with no explanation, no formatting, and no Markdown code fences.\nSchema:\n${schemaText}`
                 },
                 {
                     role: 'user', 
@@ -73,7 +72,11 @@ app.post('/api/chat', async (c) => {
     console.log('Generated SQL:', generatedSQL);
 
     // 4️⃣ Call the MCP tool to execute SQL
-    const result = await mcp.callTool('query_sql', { generatedSQL });
+    const result = await client.callTool({
+      name: 'query_sql',
+      method: 'call',
+      arguments: { sql: generatedSQL }
+    });
     const rows = result.content[0].json;
 
 
@@ -82,7 +85,7 @@ app.post('/api/chat', async (c) => {
     wait(1000); // Simulate processing delay
 
     // Step 3: Convert result to natural language with Mistral
-    const explanation = await client.chat.complete({
+    const explanation = await mistral.chat.complete({
       model: 'mistral-large-latest',
      messages: [
         {
@@ -97,13 +100,11 @@ app.post('/api/chat', async (c) => {
     });
 
     const summary = explanation.choices[0].message.content.trim();
-    mcpProcess.kill();    
     
     return c.json({ sql, data: rows, summary });
         
     } catch (error) {
         console.error('Error:', error);
-        mcpProcess.kill();
         return c.json({ error: 'An error occurred while processing your request.' }, 500);
     }
 
