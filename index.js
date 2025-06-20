@@ -56,7 +56,7 @@ Use this database schema:
 
 ${schemaDescription}
 
-Return only a complete SQL statement, nothing else. Do not say anything before or after the SQL. Do not use Markdown formatting.`},
+Use "LIKE" when comparing data and return only a complete SQL statement, nothing else. Do not say anything before or after the SQL. Do not use Markdown formatting.`},
                 {role: 'user', content: `Generate a SQL query based on: ${message}`},
             ]
         });
@@ -70,6 +70,7 @@ Return only a complete SQL statement, nothing else. Do not say anything before o
     try {
       const stmt = db.prepare(generatedSQL);
       queryResult = stmt.all(); // use .get() for single row
+      console.log(queryResult)
     } catch (queryError) {
       console.error('SQL Error:', queryError);
       return c.json({ error: 'Invalid SQL query generated.' }, 400);
@@ -81,7 +82,7 @@ Return only a complete SQL statement, nothing else. Do not say anything before o
     const explanation = await client.chat.complete({
       model: 'mistral-large-latest',
       messages: [
-        { role: 'system', content: 'You convert structured data into plain natural language summaries in the danish language. You always answer in complete sentences.' },
+        { role: 'system', content: 'You convert structured data into plain natural language summaries in the danish language. You always answer in complete sentences. If the response is empty, please reply accoringly, that the band or the stage is not a part of the program this year.' },
         { role: 'user', content: `Please provide information about the time and place, but also a short, one sentence introduction to the band based on the description in this response: ${JSON.stringify(queryResult, null, 2)}` },
       ],
     });
