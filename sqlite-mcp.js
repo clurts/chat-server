@@ -76,10 +76,16 @@ server.registerTool(
   async ({ prompt }) => {
     const fewShot = `
       Prompt: Hvornår spiller Metallica?
-      SQL: SELECT day, time FROM band WHERE LOWER(name) LIKE '%metallica%';
+      SQL: SELECT * FROM band WHERE LOWER(name) LIKE '%metallica%';
 
       Prompt: Hvilken dag spiller Volbeat?
       SQL: SELECT day FROM band WHERE LOWER(name) LIKE '%volbeat%';
+
+      Prompt: Hvem spiller på rød scene?
+      SQL: SELECT * FROM band WHERE LOWER(stage) LIKE '%rød scene%' ORDER BY day, time;
+
+      Prompt: Hvad er programmet for på fredag?
+      SQL: SELECT * FROM band WHERE LOWER(day) LIKE '%fredag%' ORDER BY stage, time;
     `;
 
     const systemPrompt = `
@@ -147,8 +153,30 @@ Eksempler: ${fewShot}
 
       const summary = rows.map((row) => JSON.stringify(row)).join("\n");
 
+      const explanation = await mistral.chat.complete({
+        model: "mistral-large-latest",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You convert structured data into plain natural language summaries in the danish language. You always answer in complete sentences. If the response is empty, please reply accoringly, that the band or the stage is not a part of the program this year.",
+          },
+          {
+            role: "user",
+            content: `answer the question asked, (${prompt}), whith the information in in the: ${summary}. provide information about both the day, the time and the stage in the response, if relevant.  If the response is empty, reply accordingly, that the band or the stage is not a part of the program this year.`,
+          },
+        ],
+      });
+
       return {
-        content: [{ type: "text", text: `Results for: ${sql}\n\n${summary}` }],
+        content: [
+          {
+            type: "text",
+            text:
+              explanation.choices?.[0]?.message?.content ||
+              "No explanation provided.",
+          },
+        ],
       };
     } catch (e) {
       return {
