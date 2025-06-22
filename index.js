@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
+import { askPrompt } from './serverclient.js';
 import { serve } from '@hono/node-server';
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+
 
 import { Mistral } from '@mistralai/mistralai';
 import dotenv from 'dotenv';
@@ -12,100 +12,41 @@ dotenv.config();
 const app = new Hono();
 const port = process.env.PORT || 4000;
 
-const apiKey = process.env.MISTRAL_API_KEY;
-
-const mistral = new Mistral({apiKey: apiKey});
-
-app.use("/*", (c, next) => {
+// Middleware to handle CORS
+app.use('*', (c, next) => {
   c.header('Access-Control-Allow-Origin', '*');
   c.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  c.header('Access-Control-Allow-Headers', 'Content-Type');
   return next();
 });
 
-// Explicitly handle OPTIONS for the /api/chat route
 app.options('/api/chat', (c) => {
-  return c.text('', 204);
+  c.header('Access-Control-Allow-Origin', '*');
+  c.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  c.header('Access-Control-Allow-Headers', 'Content-Type');
+  return c.body(null, 204);
 });
-
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 
 app.post('/api/chat', async (c) => {
-    const { message } = await c.req.json();
+  const body = await c.req.json();
+  console.log('Received body:', body);
 
-     // 1️⃣ Start the MCP server (sqlite-mcp.js must exist)
+  const message = body.message || body.prompt; // Support both 'message' and 'prompt' keys
+  console.log('Extracted message:', message);
 
-const transport = new StdioClientTransport({
-  command: 'node',
-  args: ['sqlite-mcp.js']
-});
+  if (!message || typeof message !== 'string') {
+    return c.json({ error: 'Missing or invalid prompt' }, 400);
+  }
 
-    const client = new Client({ 
-      name: "hono-client", 
-      version: "1.0.0" 
-    });
-    await client.connect(transport);
 
     try {
 
-        // 2️⃣ Fetch the schema
-    const schema = await client.readResource({ uri: 'sqlite://schema' });
-    const schemaText = schema.contents[0].text;
-
-
-        const completion = await mistral.chat.complete({
-            model: 'mistral-large-latest',
-            messages: [
-                {
-                    role: 'system',
-                    content: `You generate only raw SQLite SQL statements with no explanation, no formatting, and no Markdown code fences.\nSchema:\n${schemaText}`
-                },
-                {
-                    role: 'user', 
-                    content: message
-                },
-            ]
-        });
-
-           const generatedSQL = completion.choices[0].message.content.trim();
-    console.log('Generated SQL:', generatedSQL);
-
-    // 4️⃣ Call the MCP tool to execute SQL
-    const result = await client.callTool({
-      name: 'query_sql',
-      method: 'call',
-      arguments: { sql: generatedSQL }
-    });
-    const rows = result.content[0].json;
-
-
-  
-
-    wait(1000); // Simulate processing delay
-
-    // Step 3: Convert result to natural language with Mistral
-    const explanation = await mistral.chat.complete({
-      model: 'mistral-large-latest',
-     messages: [
-        {
-          role: 'system',
-          content: 'You summarize JSON data about bands into a natural sentence in Danish.'
-        },
-        {
-          role: 'user',
-          content: `Summarize this: ${JSON.stringify(rows, null, 2)}`
-        }
-      ]
-    });
-
-    const summary = explanation.choices[0].message.content.trim();
-    
-    return c.json({ sql, data: rows, summary });
+     const answer = await askPrompt(message);
+      return c.json({ answer });
         
-    } catch (error) {
-        console.error('Error:', error);
-        return c.json({ error: 'An error occurred while processing your request.' }, 500);
+    } catch (error) { 
+      console.error('MCP client error:', error);
+      return c.json({ error: 'Failed to query MCP server' }, 500);
     }
 
 });
