@@ -1,59 +1,55 @@
-import { Hono } from 'hono';
-import { askPrompt } from './serverclient.js';
-import { serve } from '@hono/node-server';
+import { Hono } from "hono";
+import { askPrompt } from "./mcp-client.js";
+import { serve } from "@hono/node-server";
 
-
-import { Mistral } from '@mistralai/mistralai';
-import dotenv from 'dotenv';
+import { Mistral } from "@mistralai/mistralai";
+import dotenv from "dotenv";
 dotenv.config();
-
-
 
 const app = new Hono();
 const port = process.env.PORT || 4000;
 
 // Middleware to handle CORS
-app.use('*', (c, next) => {
-  c.header('Access-Control-Allow-Origin', '*');
-  c.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  c.header('Access-Control-Allow-Headers', 'Content-Type');
+app.use("*", (c, next) => {
+  c.header("Access-Control-Allow-Origin", "*");
+  c.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  c.header("Access-Control-Allow-Headers", "Content-Type");
   return next();
 });
 
-app.options('/api/chat', (c) => {
-  c.header('Access-Control-Allow-Origin', '*');
-  c.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  c.header('Access-Control-Allow-Headers', 'Content-Type');
+app.options("/api/chat", (c) => {
+  c.header("Access-Control-Allow-Origin", "*");
+  c.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  c.header("Access-Control-Allow-Headers", "Content-Type");
   return c.body(null, 204);
 });
 
-app.post('/api/chat', async (c) => {
+app.post("/api/chat", async (c) => {
   const body = await c.req.json();
-  console.log('Received body:', body);
+  console.log("Received body:", body);
 
   const message = body.message || body.prompt; // Support both 'message' and 'prompt' keys
-  console.log('Extracted message:', message);
+  console.log("Extracted message:", message);
 
-  if (!message || typeof message !== 'string') {
-    return c.json({ error: 'Missing or invalid prompt' }, 400);
+  if (!message || typeof message !== "string") {
+    return c.json({ error: "Missing or invalid prompt" }, 400);
   }
 
-
-    try {
-
-     const answer = await askPrompt(message);
-      return c.json({ answer });
-        
-    } catch (error) { 
-      console.error('MCP client error:', error);
-      return c.json({ error: 'Failed to query MCP server' }, 500);
-    }
-
+  try {
+    const answer = await askPrompt(message);
+    return c.json({ answer });
+  } catch (error) {
+    console.error("MCP client error:", error);
+    return c.json({ error: "Failed to query MCP server" }, 500);
+  }
 });
 
-serve({
-  fetch: app.fetch,
-  port: port,
-}, () => {
-  console.log(`Server is running on port ${port}`);
-})
+serve(
+  {
+    fetch: app.fetch,
+    port: port,
+  },
+  () => {
+    console.log(`Server is running on port ${port}`);
+  }
+);

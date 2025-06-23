@@ -1,3 +1,5 @@
+// mcp-server.js
+
 import Database from "better-sqlite3";
 import {
   McpServer,
@@ -44,6 +46,93 @@ server.registerResource(
   async () => ({
     contents: [{ uri: "sqlite://schema", text: schemaText }],
   })
+);
+
+server.registerResource(
+  "schema",
+  "schema://main",
+  {
+    title: "Database Schema",
+    description: "SQLite database schema",
+    mimeType: "text/plain",
+  },
+  async (uri) => {
+    try {
+      const tables = db
+        .prepare("SELECT sql FROM sqlite_master WHERE type='table'")
+        .all();
+      return {
+        contents: [
+          { uri: uri.href, text: tables.map((t) => t.sql).join("\n") },
+        ],
+      };
+    } catch (err) {
+      console.error("Fejl ved læsning af schema:", err);
+      return {
+        contents: [{ uri: uri.href, text: "-- Fejl ved læsning af schema --" }],
+      };
+    }
+  }
+);
+
+server.registerTool(
+  "query",
+  {
+    title: "SQL Query",
+    description: "Execute SQL queries on the database",
+    inputSchema: {
+      sql: z.string(),
+    },
+  },
+  async ({ sql }) => {
+    try {
+      const stmt = db.prepare(sql);
+      const results = stmt.all();
+      // Synchronous return { content: [ { type: "text", text: JSON.stringify(results, null, 2), }, ], };
+    } catch (err) {
+      const error = err;
+      return {
+        content: [{ type: "text", text: `Error: ${error.message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.registerTool(
+  "ask-mistral",
+  {
+    title: "ask Mistral LLM",
+    description: "ask a question to Mistral LLM via API",
+    inputSchema: {
+      message: z.string().describe("what to ask the model"),
+    },
+  },
+  async ({ message }) => {
+    const completion = await mistral.chat.complete({
+      model: "mistral-large-latest",
+      messages: [
+        {
+          role: "system",
+          content: message,
+        },
+      ],
+    });
+    console.log(
+      "Mistral completion content:",
+      completion.choices?.[0]?.message?.content
+    );
+    return {
+      content: [
+        {
+          type: "text",
+          text:
+            completion.choices?.[0]?.message?.content ||
+            "No response from Mistral",
+        },
+      ],
+    };
+  }
 );
 
 // 2️⃣ Tool: execute raw SQL
