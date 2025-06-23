@@ -36,7 +36,7 @@ const server = new McpServer({
 
 // 1️⃣ Resource: expose your DB schema
 server.registerResource(
-  "schema",
+  "static-schema",
   new ResourceTemplate("sqlite://schema", {}),
   {
     title: "Database schema",
@@ -44,7 +44,7 @@ server.registerResource(
     mimeType: "text/plain",
   },
   async () => ({
-    contents: [{ uri: "sqlite://schema", text: schemaText }],
+    contents: [{ uri: "sqlite://static-schema", text: schemaText }],
   })
 );
 

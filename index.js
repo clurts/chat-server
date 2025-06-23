@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { askPrompt } from "./mcp-client.js";
 import { serve } from "@hono/node-server";
 
-import { Mistral } from "@mistralai/mistralai";
 import dotenv from "dotenv";
 dotenv.config();
 
