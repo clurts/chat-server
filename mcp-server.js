@@ -80,15 +80,16 @@ server.registerTool(
   {
     title: "SQL Query",
     description: "Execute SQL queries on the database",
-    inputSchema: {
-      sql: z.string(),
-    },
+    inputSchema: { sql: z.string().describe("the query to execute") },
   },
   async ({ sql }) => {
     try {
       const stmt = db.prepare(sql);
-      const results = stmt.all();
-      // Synchronous return { content: [ { type: "text", text: JSON.stringify(results, null, 2), }, ], };
+      const results = stmt.all(); // Synchronous
+      console.log("Results: ", results);
+      return {
+        content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+      };
     } catch (err) {
       const error = err;
       return {
@@ -141,7 +142,7 @@ server.registerTool(
   {
     title: "Execute SQL query",
     description: "Executes a SELECT or other SQL statement and returns JSON",
-    inputSchema: { sql: z.string().describe("the query to execute") }, //not inputSchema
+    inputSchema: { sql: z.string().describe("the query to execute") },
   },
   async ({ sql }) => {
     try {
