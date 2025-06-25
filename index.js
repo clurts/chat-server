@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { askPrompt } from "./mcp-client.js";
 import { serve } from "@hono/node-server";
 
@@ -9,19 +10,7 @@ const app = new Hono();
 const port = process.env.PORT || 4000;
 
 // Middleware to handle CORS
-app.use("*", (c, next) => {
-  c.header("Access-Control-Allow-Origin", "*");
-  c.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  c.header("Access-Control-Allow-Headers", "Content-Type");
-  return next();
-});
-
-app.options("/api/chat", (c) => {
-  c.header("Access-Control-Allow-Origin", "*");
-  c.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  c.header("Access-Control-Allow-Headers", "Content-Type");
-  return c.body(null, 204);
-});
+app.use("api/*", cors());
 
 app.post("/api/chat", async (c) => {
   const body = await c.req.json();

@@ -31,7 +31,12 @@ export async function askPrompt(prompt) {
   const llmResponse = await client.callTool({
     name: "ask-mistral",
     arguments: {
-      message: `Skema: ${schemaText}\n\nPrompt: ${prompt}\n\nGenerer en rå SQL-sætning uden nærmere forklaring, baseret på skemaet og prompten. Tag højde for, at brugeren måske ikke har skrevet præcist, hvad de ønsker, så vær fleksibel i din fortolkning. Returner kun SQL-sætningen uden yderligere tekst eller forklaringer. Brug gerne keywords som "SELECT", "FROM", "WHERE", "ORDER BY" osv. Husk at SQL'en skal være gyldig og sikker at køre mod databasen.\n\nEksempel på SQL-sætning:\n\n\`\`\`sql\nSELECT * FROM band WHERE LOWER(stage) LIKE '%rød scene%' ORDER BY day, time;\n\`\`\`\n\nForetræk altid 'SELECT * FROM...' så der er mest mulig data til at generere svaret med.`,
+      message: `Skema: ${schemaText}\n\nPrompt: ${prompt}\n\nGenerer en rå SQL-sætning uden nærmere forklaring, baseret på skemaet og prompten. Tag højde for, at brugeren måske ikke har skrevet præcist, hvad de ønsker, så vær fleksibel i din fortolkning. Returner kun SQL-sætningen uden yderligere tekst eller forklaringer. Brug gerne keywords som "SELECT", "FROM", "WHERE", "ORDER BY" osv. Husk at SQL'en skal være gyldig og sikker at køre mod databasen.
+      Eksempel på SQL-sætning: "sql\nSELECT * FROM band WHERE LOWER(stage) LIKE '%rød scene%' ORDER BY day, time;"
+      Foretræk altid 'SELECT * FROM...' så der er mest mulig data til at generere svaret med.
+      Hvis en nøgle slutter med 'Id', så brug ordet fra nøglen før 'Id' til at joine tabellerne.
+      Hvis der er flere tabeller, så brug 'JOIN' for at kombinere dem,  og sørg for at inkludere alle relevante kolonner i resultatet.,  
+      `,
     },
   });
 
@@ -53,7 +58,7 @@ export async function askPrompt(prompt) {
   const finalResponse = await client.callTool({
     name: "ask-mistral",
     arguments: {
-      message: `omskriv databaseresponsen til et menneskeligt læsbart format: ${queryResponse.content[0].text}. Udelad id'er og billedstier fra tekst-resultatet.`,
+      message: `omskriv databaseresponsen til et menneskeligt læsbart format: ${queryResponse.content[0].text}. Udelad id'er og billedstier fra tekst-resultatet. Opmarker resultatet med html tags så jeg nemt kan bruge det i mit eksisterende website. Brug <p> for afsnit, relevante h-tags for overskrifter startende med h2, og <ul><li> for lister. `,
     },
   });
   console.log("Final response:", finalResponse.content[0].text);
