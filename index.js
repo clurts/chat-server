@@ -1,47 +1,43 @@
-import { serve } from '@hono/node-server';
-import { Hono } from 'hono';
-import { Mistral } from '@mistralai/mistralai';
-import dotenv from 'dotenv';
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { askPrompt } from "./mcp-client.js";
+import { serve } from "@hono/node-server";
+
+import dotenv from "dotenv";
 dotenv.config();
 
 const app = new Hono();
 const port = process.env.PORT || 4000;
 
-const apiKey = process.env.MISTRAL_API_KEY;
+// Middleware to handle CORS
+app.use("api/*", cors());
 
-const client = new Mistral({apiKey: apiKey});
+app.post("/api/chat", async (c) => {
+  const body = await c.req.json();
+  console.log("Received body:", body);
 
-app.use("/*", (c, next) => {
-  c.header('Access-Control-Allow-Origin', '*');
-  c.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  return next();
+  const message = body.message || body.prompt; // Support both 'message' and 'prompt' keys
+  console.log("Extracted message:", message);
+
+  if (!message || typeof message !== "string") {
+    return c.json({ error: "Missing or invalid prompt" }, 400);
+  }
+
+  try {
+    const answer = await askPrompt(message);
+    return c.json({ answer });
+  } catch (error) {
+    console.error("MCP client error:", error);
+    return c.json({ error: "Failed to query MCP server" }, 500);
+  }
 });
 
-// Explicitly handle OPTIONS for the /api/chat route
-app.options('/api/chat', (c) => {
-  return c.text('', 204);
-});
-
-app.post('/api/chat', async (c) => {
-    try {
-        const { message } = await c.req.json();
-        console.log('Received message:', message);
-        const chatResponse = await client.chat.complete({
-            model: 'mistral-large-latest',
-            messages: [{role: 'user', content: message}],
-        });
-        return c.json({ response: chatResponse.choices[0].message.content });
-    } catch (error) {
-        console.error('Error:', error);
-        return c.json({ error: 'An error occurred while processing your request.' }, 500);
-    }
-
-});
-
-serve({
-  fetch: app.fetch,
-  port: port,
-}, () => {
-  console.log(`Server is running on port ${port}`);
-})
+serve(
+  {
+    fetch: app.fetch,
+    port: port,
+  },
+  () => {
+    console.log(`Server is running on port ${port}`);
+  }
+);
